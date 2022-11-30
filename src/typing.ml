@@ -91,41 +91,35 @@ and expr_desc env loc = function
       |Cint(a)->TEconstant(a),Tint,false
       |Cstring(a)->TEconstant(a),Tstring,false)
   | PEbinop (op, e1, e2) ->(
-    let te1 = expr env e1 in
-    let te2= expr env e2 in
+    let f1 = expr env e1 in
+    let f2= expr env e2 in
     (match op with
-      | Badd | Bsub | Bmul | Bdiv | Bmod -> 
-        if (fst te1).expr_typ <> Tint then
-          errtyp loc Tint (fst te1).expr_typ;
-        if (fst te2).expr_typ <> Tint then
-          errtyp loc Tint (fst te2).expr_typ;
-        TEbinop(op,fst te1, fst te2), Tint,false
-      | Beq | Bne -> 
-        if (fst te1).expr_desc = TEnil && (fst te2).expr_desc = TEnil then 
-          error loc "illicit comparison";
-        TEbinop(op,fst te1,fst te2),Tbool,false
-      | Blt | Ble | Bgt | Bge -> 
-        if (fst te1).expr_typ <> Tint  then
-          errtyp loc Tint (fst te1).expr_typ;
-        if (fst te2).expr_typ <> Tint  then
-          errtyp loc Tint (fst te2).expr_typ;
-        TEbinop(op,fst te1, fst te2), Tbool,false
-      | Band | Bor -> 
-        if (fst te1).expr_typ <> Tbool then
-          errtyp loc Tbool (fst te1).expr_typ;
-        if (fst te2).expr_typ <> Tbool then
-          errtyp loc Tbool (fst te2).expr_typ;
-        TEbinop(op,fst te1, fst te2), Tbool,false))
-        | PEunop (Uamp, e) ->
-          if islvalue e.pexpr_desc 
-            then let ex, rx = expr env e in TEunop (Uamp, ex), Tptr (ex.expr_typ), false
-            else error loc ("l-value attendue pour &")
-        | PEunop (Uneg, e1) ->
-          let ex, rx = expr env e1 in
-          if ex.expr_typ = Tint 
-            then TEunop (Uneg, ex), Tint, false
-            else error loc ("type int attendu pour négation")
-        | PEunop (Unot, e1) ->
+      | Badd 
+      | Bsub
+      | Bmul 
+      | Bdiv 
+      | Bmod -> if f1.expr_typ <> Tint || f2.expr_typ <> Tint then errtyp loc Tint f1.expr_typ;
+                TEbinop(op,fst te1, fst te2), Tint,false
+      | Beq 
+      | Bne ->  if f1.expr_desc = TEnil && f2.expr_desc = TEnil then error loc "";
+                TEbinop(op,f1,f2),Tbool,false
+      | Blt
+      | Ble 
+      | Bgt 
+      | Bge -> if f1.expr_typ <> Tint  then errtyp loc Tint f1.expr_typ;
+                                 if f2.expr_typ <> Tint  then errtyp loc Tint f2.expr_typ;
+                                 TEbinop(op,f1, f2), Tbool,false
+      | Band 
+      | Bor -> if f1.expr_typ <> Tbool then errtyp loc Tbool f1.expr_typ;
+               if f2.expr_typ <> Tbool then errtyp loc Tbool f2.expr_typ;
+               TEbinop(op,f1, f2), Tbool,false)
+       )
+  | PEunop (Uamp, e) -> if islvalue e.pexpr_desc then let ex, rx = expr env e in TEunop (Uamp, ex), Tptr (ex.expr_typ), false
+                        else error loc ("pas l-value")
+  | PEunop (Uneg, e1) -> let e, r = expr env e1 in
+                         if e.expr_typ = Tint then TEunop (Uneg, ex), Tint, false
+                         else error loc ("not int")
+  | PEunop (Unot, e1) ->
           let ex, rx = expr env e1 in
           if ex.expr_typ = Tbool 
             then TEunop (Unot, ex), Tbool, false
