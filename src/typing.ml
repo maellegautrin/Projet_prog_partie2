@@ -114,157 +114,119 @@ and expr_desc env loc = function
                if f2.expr_typ <> Tbool then errtyp loc Tbool f2.expr_typ;
                TEbinop(op,f1, f2), Tbool,false)
        )
-  | PEunop (Uamp, e) -> if islvalue e.pexpr_desc then let ex, rx = expr env e in TEunop (Uamp, ex), Tptr (ex.expr_typ), false
+  | PEunop (Uamp, e) -> if islvalue e.pexpr_desc then let f = expr env e in TEunop (Uamp, fst f), Tptr ((fst f).expr_typ), false
                         else error loc ("pas l-value")
-  | PEunop (Uneg, e1) -> let e, r = expr env e1 in
-                         if e.expr_typ = Tint then TEunop (Uneg, ex), Tint, false
+  | PEunop (Uneg, e1) -> let f = expr env e1 in
+                         if (fst f).expr_typ = Tint then TEunop (Uneg, fst f), Tint, false
                          else error loc ("not int")
-  | PEunop (Unot, e1) ->
-          let ex, rx = expr env e1 in
-          if ex.expr_typ = Tbool 
-            then TEunop (Unot, ex), Tbool, false
-            else error loc ("type bool attendu pour non logique")
-        | PEunop (Ustar, e1) ->
-           let ex, rx = expr env e1 in
-           (
-            match ex.expr_typ with
-              |Tptr t -> TEunop (Ustar, ex), t, false
-              | _ -> error loc ("pointeur non égal à nil attendu pour *")
-           )
-        | PEcall ({id = "fmt.Print"}, el) ->
-          (if not !fmt_imported then error loc ("Print demandé sans import de fmt"););
-          fmt_used := true;
-          let toprint = List.map (exprx env) el in
-           TEprint toprint, tvoid, false
-        | PEcall ({id="new"}, [{pexpr_desc=PEident {id}}]) ->
-           let ty = match id with
-             | "int" -> Tint | "bool" -> Tbool | "string" -> Tstring
-             | _ -> 
-              if Hashtbl.mem tablestructs id 
-                then type_type (PTident {id ; loc})
-                else error loc ("type "^id^" inconnu ")
-            in
-           TEnew ty, Tptr ty, false
-        | PEcall ({id="new"}, _) ->
-           error loc "demande de new sans type donné"
-        | PEcall (id, el) ->
-           (
-             try
-            let pf = Funcs.find id.id in
-            let el_typee = List.map (exprx env) el in
-            let f = {fn_name = pf.pf_name.id ; fn_typ = List.map type_type pf.pf_typ ;
-                      fn_params = List.map (fun (id,typ) -> new_var id.id id.loc (type_type typ)) pf.pf_params} in
-            let typ = listtotype f.fn_typ in
-            TEcall(f,el_typee), typ , false
-           with
-           |Not_found -> error loc ("appel de fonction "^id.id^" inconnue")
-           )
-        | PEfor (e, b) ->
-           let exb, rtb = expr env e in (* on regarde le test booléen, on vérifie que c'est un booléen *)
-           (if rtb then error loc ("le test booléen retourne qqch"););
-           if exb.expr_typ = Tbool 
-              then
-                let ex, rx = expr env b in
-                TEfor (ex, exb), tvoid, rx
-              else error loc ("type bool attendu dans test de for")
-        | PEif (e1, e2, e3) ->
-          let ex, rx = expr env e1 in
-          (if rx then error loc ("le test booléen retourne qqch"););
-          if ex.expr_typ = Tbool 
-            then 
-              let ex2, rt2 = expr env e2 in 
-              let ex3, rt3 = expr env e3 in
-              TEif (ex, ex2,ex3), tvoid, rt2 && rt3
-            else error loc ("type bool attendu dans test de if")
-        | PEnil ->
-           TEnil, tvoid, false
-        | PEident {id=id}->
-          (
-           try 
-            let v = Env.find id !envactuel in 
-              v.v_used <- true;
-              TEident v, v.v_typ, false
-           with Not_found -> error loc ("variable inconnue" ^ id)
-          )
-        | PEdot (e, id) ->
-           (
-            let newe = exprx env e in
-             match newe.expr_typ with
-              |Tstruct a |Tptr (Tstruct a) -> 
-                (
-                  try
-                  let s = Hashtbl.find tablestructs a.s_name in
-                  if Hashtbl.mem s.s_fields id.id 
-                    then let field = Hashtbl.find s.s_fields id.id in
-                          TEdot(newe,field),field.f_typ,false
-                    else error loc ("la structure"^s.s_name^"n'a pas de champ"^id.id)
-                  with 
-                  |Not_found -> error loc ("structure inconnue")
-                )
-              | _ -> error loc ("dot sur qqch qui n'est pas une structure")
-           )
+  | PEunop (Uneg | Unot | Ustar as op, e1) -> let f = fst (expr env e1) in
+                                              (match f.expr_typ with
+                                                |Tint -> if op <> Uneg then error e1.pexpr_loc "int" ;TEunop(op,f),f.expr_typ,false
+                                                |Tbool -> if op <> Unot then error e1.pexpr_loc "bool" ;
+                                                          TEunop(op,f),f.expr_typ,false
+                                                |Tptr(a) -> if op <> Ustar then error e1.pexpr_loc "ptr";
+                                                            TEunop(op,f),a,false
+                                                |_ -> error e1.pexpr_loc "mauvais type")
+  | PEcall ({id = "fmt.Print"}, el) -> (if not !fmt_imported then error loc ("import fmt"););
+                                       fmt_used := true;
+                                       let f = List.map (exprx env) el in
+                                       TEprint f, tvoid, false
+  | PEcall ({id="new"}, [{pexpr_desc=PEident {id}}]) -> let ty = match id with
+                                                          | "int" -> Tint
+                                                          | "bool" -> Tbool
+                                                          | "string" -> Tstring
+                                                          | _ -> 
+                                                      if Hashtbl.mem tablestructs id then type_type (PTident {id ; loc})
+                                                      else error loc ("type inconnu ")
+                                                      in TEnew ty, Tptr ty, false
+   | PEcall ({id="new"}, _) -> error loc "pas de type"
+   | PEcall (id, el) -> (
+                         try
+                         let pf = Funcs.find id.id in
+                         let el_typee = List.map (exprx env) el in
+                         let f = {fn_name = pf.pf_name.id ; fn_typ = List.map type_type pf.pf_typ ;
+                         fn_params = List.map (fun (id,typ) -> new_var id.id id.loc (type_type typ)) pf.pf_params} in
+                         let typ = listtotype f.fn_typ in
+                         TEcall(f,el_typee), typ , false
+                         with |Not_found -> error loc ("inconnue")
+                         )
+    | PEfor (e, b) -> let ptb = expr env e in
+                      (if (snd ptb) then error loc ("booléen avec return"););
+                       if (fst ptb).expr_typ = Tbool then
+                            let f = expr env b in TEfor f, tvoid, snd f
+                       else error loc ("type bool attendu dans test de for")
+    | PEif (e1, e2, e3) -> let f1 = expr env e1 in
+                           let f2 = expr env e2 in 
+                           let f3 = expr env e3 in
+                           (if (snd f1) then error loc ("booléen avec return"););
+                           if (fst f1).expr_typ = Tbool then TEif (fst f1,fst ff2, fst f3), tvoid, (snd f2) && (snd f3)
+                           else error loc ("pas de bool")
+    | PEnil -> TEnil, tvoid, false
+    | PEident {id=id}-> (
+                         try 
+                         let v = Env.find id !envactuel in v.v_used <- true;
+                         TEident v, v.v_typ, false
+                         with Not_found -> error loc ("variable non référencée)
+                         )
+     | PEdot (e, id) ->(
+                       let f = exprx env e in
+                       match f.expr_typ with
+                          |Tstruct a 
+                          |Tptr (Tstruct a) ->(
+                                               try
+                                               let s = Hashtbl.find tablestructs a.s_name in
+                                               if Hashtbl.mem s.s_fields id.id then 
+                                                     let field = Hashtbl.find s.s_fields id.id in
+                                                     TEdot(newe,field),field.f_typ,false
+                                               else error loc ("la structure"^s.s_name^"n'a pas de champ"^id.id)
+                                               with 
+                                              |Not_found -> error loc ("structure inconnue")
+                                                   )
+                          | _ -> error loc ("struct inconnue")
+                         )
       
-        | PEassign (lvl, el) ->
-            if List.for_all (fun x -> islvalue x.pexpr_desc) lvl
-              then
-                let nlvl = List.length lvl and nel = List.length el in
-                (
-                  if nlvl < nel then error loc ("trop de r-values")
-                  else if nlvl > nel then error loc ("trop de l-values")
-                );
-                let newlvl = List.map (exprx env) lvl in
-                let newel = List.map (exprx env) el in
-                validassign newlvl newel loc;
-                TEassign (newlvl, newel), tvoid, false 
-              else error loc "l-value attendue pour assignation"
-        | PEreturn el ->
-          let el_typee = List.map (exprx env) el in
-          let retour = listtotype (List.map (fun x -> x.expr_typ) el_typee) in
-          if retour = !typederetour 
-            then TEreturn el_typee, tvoid, true
-            else error loc "mauvais type de retour"
-        | PEblock el ->
-          let el_typee = List.map (exprx env) el in
-          let rt = List.exists (rtx env) el in
-      (*     envactuel := env; *) (* cette ligne fait planter tous les for ??? je ne comprends pas pourquoi elle existe ??? lol *)
-          TEblock el_typee, tvoid, rt
-        | PEincdec (e, op) ->
-           let dx, tyx, rtx = expr_desc env loc e.pexpr_desc in
-           if tyx = Tint
-            then TEincdec (make dx tyx, op), Tint, false
-            else error loc ("type int attendu pour ++/--")
-        | PEvars (il, ty, el) ->
-          let el_typee = List.map (exprx env) el in
-          match ty with
-          |None -> 
-              (
-                match el_typee with
-                | [] -> 
-                  error loc ("besoin de type dans déclaration sans expression")
-                | [{expr_desc = TEcall (f,params)}] -> 
-                  let listevars = nv_var_type il f.fn_typ loc in TEvars listevars, tvoid, false
-                |_ -> 
-                  List.iter (fun x -> if x.expr_desc = TEnil then error loc "expression vide dans assign") el_typee;
-                  let typelist = typeofexprlist el_typee in
-                  let listevars = nv_var_type il typelist loc in TEvars listevars, tvoid, false
-              )
-            |Some typev ->
-              (
-                let t = type_type typev in
-                let ltypes = List.init (List.length il) (fun n -> t) in
-                match el_typee with
-                |[] -> 
-                  let listevars = nv_var_type il ltypes loc in TEvars listevars, tvoid, false
-                |[{expr_desc = TEcall (f,params)}] -> 
-                  if eqlist eq_type ltypes f.fn_typ 
-                    then (let listevars = nv_var_type il ltypes loc in TEvars listevars, tvoid, false)
-                    else error loc "types incompatibles"
-                | _ -> 
-                  let typelist = typeofexprlist el_typee in
-                  if eqlist eq_typeLR ltypes typelist 
-                    then (let listevars = nv_var_type il ltypes loc in TEvars listevars, tvoid, false)
-                    else error loc "types incompatibles"
-              )
+       | PEassign (lvl, el) -> if List.for_all (fun x -> islvalue x.pexpr_desc) lvl then
+                                    let nlvl = List.length lvl and nel = List.length el in
+                                    (
+                                    if nlvl < nel then error loc ("trop de r-values")
+                                    else if nlvl > nel then error loc ("trop de l-values")
+                                    );
+                               let newlvl = List.map (exprx env) lvl in
+                               let newel = List.map (exprx env) el in
+                               validassign newlvl newel loc;
+                               TEassign (newlvl, newel), tvoid, false 
+                               else error loc "l-value attendue pour assignation"
+        | PEreturn el -> let t1 = List.map (exprx env) el in
+                         let ret = listtotype (List.map (fun x -> x.expr_typ) t1) in
+                         if retour = !typederetour then TEreturn t1, tvoid, true
+                         else error loc "mauvais type de retour"
+        | PEblock el ->let t1 = List.map (exprx env) el in
+                       let r = List.exists (r env) el in
+                       TEblock t1, tvoid, r
+        | PEincdec (e, op) -> let (f,_,_) = expr_desc env loc e.pexpr_desc in
+                              if tyx = Tint then TEincdec (make dx tyx, op), Tint, false
+                              else error loc ("pas de int")
+        | PEvars (il, ty, el) -> let t1 = List.map (exprx env) el in
+                                     match ty with
+                                      |None -> (
+                                                   match el_typee with
+                                                     | [] -> error loc ("expression")
+                                                     | [{expr_desc = TEcall (f,params)}] -> let listevars = nv_var_type il f.fn_typ loc in TEvars listevars, tvoid, false
+                                                     |_ ->List.iter (fun x -> if x.expr_desc = TEnil then error loc "expression vide dans assign") el_typee;
+                                                          let typelist = typeofexprlist el_typee in
+                                                          let listevars = nv_var_type il typelist loc in TEvars listevars, tvoid, false
+                                                 )
+                                      |Some typev ->(
+                                                     let t = type_type typev in
+                                                     let ltypes = List.init (List.length il) (fun n -> t) in
+                                                     match t1 with
+                                                         |[] -> let listevars = nv_var_type il ltypes loc in TEvars listevars, tvoid, false
+                                                         |[{expr_desc = TEcall (f,params)}] -> if eqlist eq_type ltypes f.fn_typ then (let listevars = nv_var_type il ltypes loc in TEvars listevars, tvoid, false)
+                                                                                               else error loc "types incompatibles"
+                                                         | _ -> let typelist = typeofexprlist el_typee in
+                                                                if eqlist eq_typeLR ltypes typelist then (let listevars = nv_var_type il ltypes loc in TEvars listevars, tvoid, false)
+                                                                else error loc "incompatible"
+                                                     )
 
 let found_main = ref false
 
@@ -274,23 +236,36 @@ let phase1 = function
   | PDfunction _ -> ()
 
 let sizeof = function
-  | Tint | Tbool | Tstring | Tptr _ -> 8
+  | Tint 
+  | Tbool 
+  | Tstring 
+  | Tptr _ -> 8
   | _ -> (* TODO *) assert false 
 
 (* 2. declare functions and type fields *)
 let phase2 = function
-  | PDfunction { pf_name={id; loc}; pf_params=pl; pf_typ=tyl; } ->
-     (* TODO *) () 
-  | PDstruct { ps_name = {id}; ps_fields = fl } ->
-     (* TODO *) () 
+  | PDfunction ({ pf_name={id; loc}; pf_params=pl; pf_typ=tyl; } as f) -> if id="main" then (
+                                                                          if pl <> [] then error loc "trop d'arguments";
+                                                                          if tyl <> [] then error loc "return";
+                                                                          found_main := true);
+                                                                          if List.for_all is_well_formed (List.map snd pl) && List.for_all is_well_formed tyl then 
+                                                                          Funcs.add f
+                                                                          else error loc ("fonction "^id^" is ill-formed")
+  | PDstruct { ps_name = {id}; ps_fields = fl } -> if not (List.for_all is_well_formed (List.map snd fl)) then error loc id;
+                                                   if not (Pstructs.are_fields_unique s) then error loc ("duplicate attributes in structure "^s.ps_name.id);
+                                                   Pstructs.add s
 
 (* 3. type check function bodies *)
 let decl = function
-  | PDfunction { pf_name={id; loc}; pf_body = e; pf_typ=tyl } ->
-    (* TODO check name and type *) 
-    let f = { fn_name = id; fn_params = []; fn_typ = []} in
-    let e, rt = expr Env.empty e in
-    TDfunction (f, e)
+  | PDfunction { pf_name={id; loc}; pf_body = e; pf_typ=tyl } -> let return_type = List.map type_type tyl in
+                                                                 ret_type := l_to_typ return_type;
+                                                                 let params = ref [] in
+                                                                 let env = ref Env.new_env in
+                                                                 List.iter (fun (p,t) -> let (a,b) = (Env.var p.id p.loc (type_type t) !env) in
+                                                                 env := a;params := b::!params) pfparams ;
+                                                                 let f = { fn_name = id; fn_params = []; fn_typ = []} in
+                                                                 let e, rt = expr Env.empty e in
+                                                                 TDfunction (f, e)
   | PDstruct {ps_name={id}} ->
     (* TODO *) let s = { s_name = id; s_fields = Hashtbl.create 5; s_size = 0 } in
      TDstruct s
