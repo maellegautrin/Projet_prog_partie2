@@ -82,7 +82,7 @@ let fmt_used = ref false
 let fmt_imported = ref false
 
 let evar v = { expr_desc = TEident v; expr_typ = v.v_typ }
-let id = ref 0 in
+let id = ref 0 
 let new_var =
   fun x loc ?(used=false) ty ->
     incr id;
