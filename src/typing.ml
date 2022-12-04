@@ -175,12 +175,12 @@ and expr_desc env loc = function
                                                           | "int" -> Tint 
                                                           | "bool" -> Tbool 
                                                           | "string" -> Tstring
-                                                          | _ when Hashtbl.mem struct_env id -> Tstruct (find struct_env id) 
+                                                          | _ when Hashtbl.mem struct_env id -> Tstruct (Hashtbl.find struct_env id) 
                                                           | _ -> error loc ("mauvais type") in
                                                                  TEnew ty, Tptr ty, false
   | PEcall ({id="new"}, _) ->  error loc "pas de type"
   | PEcall (id, el) -> ( if not(Hashtbl.mem fonction_env id.id) then error loc "fonction inconnue"
-                        else (let l_entry = List.map (pexpr_to_expr env) el and f,exp = (find fonction_env id.id) in 
+                        else (let l_entry = List.map (pexpr_to_expr env) el and f,exp = (Hashtbl.find fonction_env id.id) in 
                                if f.fn_params = [] && l_entry <> [] then error loc "pas d'argument pour cette fonction"
                               else match l_entry with
                                     | [{expr_desc=TEcall (g,l_entry_g)}] when compare_typ_var f.fn_params g.fn_typ -> if List.length f.fn_typ = 1 then TEcall (f,l_entry), List.hd (f.fn_typ), false
@@ -413,7 +413,7 @@ let phase2 = function
             add fonction_env id (f,pf_body);
           if not(is_param_dist new_pl) then raise (Error (loc,"plusieur parametre avec le même nom"))
       )
-  | PDstruct { ps_name = {id;loc}; ps_fields = fl } -> let fields = (find struct_env id).s_fields in to_tfield fl fields
+  | PDstruct { ps_name = {id;loc}; ps_fields = fl } -> let fields = (Hashtbl.find struct_env id).s_fields in to_tfield fl fields
 
 (* 3. type check function bodies *)
 
@@ -437,15 +437,15 @@ let decl = function
   | PDfunction { pf_name={id; loc}; pf_body = e; pf_typ=tyl; pf_params=pl } ->
     (
       typ_function := ptyp_to_ttyp loc tyl;
-      let f,exp = find fonction_env id in
+      let f,exp = Hashtbl.find fonction_env id in
           env_f := (is_lvar_in  f.fn_params);
           env_f := Env.add (!env_f) (new_var "_" dummy_loc tvoid);
           let e, rt = expr !env_f e in 
             if rt = false && f.fn_typ <> [] then error loc "type unit"
-            else let f,exp = find fonction_env id in TDfunction (f, e)
+            else let f,exp = Hashtbl.find fonction_env id in TDfunction (f, e)
     )
   | PDstruct {ps_name={id;loc}} ->
-    let s = find struct_env id in
+    let s = Hashtbl.find struct_env id in
      (is_recursive_structure loc s [s.s_name]; TDstruct s) 
      
 let file ~debug:b (imp, dl) =
