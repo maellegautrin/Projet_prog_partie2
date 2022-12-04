@@ -110,7 +110,8 @@ let rec pstruct_to_struct s =
   let n = List.length struc.ps_fields in
   let ns = {
     s_name = s;
-    s_fields = Hashtbl.create n
+    s_fields = Hashtbl.create n;
+    s_size =0
   } in
   Structs.add ns;
   let h = (Structs.find s).s_fields in
