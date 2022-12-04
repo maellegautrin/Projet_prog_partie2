@@ -62,7 +62,7 @@ let rec type_type loc = function
   | PTident { id = "int" } -> Tint
   | PTident { id = "bool" } -> Tbool
   | PTident { id = "string" } -> Tstring
-  | PTident { id } when Hashtbl.mem struct_env id -> Tstruct(find struct_env id)
+  | PTident { id } when Hashtbl.mem struct_env id -> Tstruct(Hashtbl.find struct_env id)
   | PTptr ty -> Tptr (type_type loc ty)
   | _ -> raise (Error (loc, "type inconnu")) 
 
