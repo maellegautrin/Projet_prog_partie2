@@ -65,7 +65,7 @@ let rec type_type loc = function
   | PTident { id = "string" } -> Tstring
   | PTident { id } when Hashtbl.mem struct_env id -> Tstruct(Hashtbl.find struct_env id)
   | PTptr ty -> Tptr (type_type loc ty)
-  | _ -> raise (Error (loc, "type inconnu")) 
+  | _ -> raise (Error (loc, "type inconnu 1")) 
 
 let rec eq_type ty1 ty2 = match ty1, ty2 with
   | Tint, Tint 
@@ -127,7 +127,7 @@ and expr_desc env loc = function
                         | Cstring _ -> TEconstant c, Tstring, false
                     )
   | PEbinop (op, e1, e2) -> let exp1,rt1 = expr env e1 and exp2,rt2 = expr env e2 in
-                         ( if not(eq_type exp1.expr_typ exp2.expr_typ) then raise (Error (loc,"type inconnu")) 
+                         ( if not(eq_type exp1.expr_typ exp2.expr_typ) then raise (Error (loc,"type inconnu 2")) 
                            else match op with 
                             | Badd 
                             | Bsub 
