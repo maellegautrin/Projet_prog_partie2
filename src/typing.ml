@@ -406,7 +406,7 @@ let rec is_param_dist = function
 let phase2 = function
   | PDfunction { pf_name={id; loc} ; pf_params=pl; pf_typ=tyl; pf_body} ->
       (if id = "main" then 
-          (found_main := true; if pl <> [] then error loc "trop d'argument"; if tyl <> [] then error loc "trop d'argument");
+          (found_main := true;print_bool !found_main; if pl <> [] then error loc "trop d'argument"; if tyl <> [] then error loc "trop d'argument");
         if Hashtbl.mem fonction_env id then raise (Error (loc,"plusieur fonction aux même nom"))
         else let new_pl = to_tparam pl and new_typ = to_ttyp loc tyl in
           let f = {fn_name = id; fn_params = (new_pl); fn_typ = new_typ} in
@@ -453,7 +453,7 @@ let file ~debug:b (imp, dl) =
   (* fmt_imported := imp; *)
   List.iter phase1 dl;
   List.iter phase2 dl;
-  print_bool !found_main
+ 
   if not !found_main then error dummy_loc "missing method main";
   let dl = List.map decl dl in
   Env.check_unused (); 
