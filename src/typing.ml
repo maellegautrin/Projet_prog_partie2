@@ -131,22 +131,22 @@ and expr_desc env loc = function
                          (match op with
                         | Badd | Bsub | Bmul | Bdiv | Bmod -> 
                          if te1.expr_typ <> Tint then
-                             error loc "mauvais type";
+                             error loc "mauvais type 1";
                         if te2.expr_typ <> Tint then
-                             error loc "mauvais type";
+                             error loc "mauvais type 2";
                              TEbinop(op,te1, te2), Tint,false
                         | Beq | Bne ->  if te1.expr_desc = TEnil && te2.expr_desc = TEnil then 
-                             error loc "mauvais type";
+                             error loc "mauvais type 3";
                              TEbinop(op,te1,te2),Tbool,false
                         | Blt | Ble | Bgt | Bge -> if te1.expr_typ <> Tint  then
-                             error loc "mauvais type";
+                             error loc "mauvais type 4";
                             if te2.expr_typ <> Tint  then
-                             error loc  "mauvais type";
+                             error loc  "mauvais type 5";
                             TEbinop(op, te1, te2), Tbool,false
                         | Band | Bor -> if te1.expr_typ <> Tbool then
-                              error loc "mauvais type";
+                              error loc "mauvais type 6";
                              if te2.expr_typ <> Tbool then
-                             error loc "mauvais type";
+                             error loc "mauvais type 7";
                              TEbinop(op,te1, te2), Tbool,false)
                           )
   | PEunop (Uamp, e1) -> ( let exp,rt = expr env e1 in 
