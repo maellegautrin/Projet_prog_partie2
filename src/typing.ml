@@ -212,7 +212,7 @@ and expr_desc env loc = function
                           | Tstruct s 
                           | Tptr Tstruct s when exp.expr_desc <> TEnil -> let fields = s.s_fields in 
                               if not(Hashtbl.mem fields id.id) then error loc "inconnu"
-                              else let f = find fields id.id in TEdot (exp, f), f.f_typ, false
+                              else let f = Hashtbl.find fields id.id in TEdot (exp, f), f.f_typ, false
                           | _ -> error loc "pas une structure"
                      )
   | PEassign (lvl, el) -> ( let rec aux = function
