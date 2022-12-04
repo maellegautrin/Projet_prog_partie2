@@ -141,7 +141,7 @@ and expr_desc env loc = function
                         | Blt | Ble | Bgt | Bge -> if te1.expr_typ <> Tint  then
                              error loc "mauvais type";
                             if te2.expr_typ <> Tint  then
-                             error loc Tint "mauvais type";
+                             error loc  "mauvais type";
                             TEbinop(op, te1, te2), Tbool,false
                         | Band | Bor -> if te1.expr_typ <> Tbool then
                               error loc "mauvais type";
