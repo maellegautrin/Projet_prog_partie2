@@ -61,7 +61,7 @@ and expr_desc =
   | TEident of var
   | TEdot of expr * field
   | TEassign of expr list * expr list
-  | TEvars of var list * expr list
+  | TEvars of var list
   | TEif of expr * expr * expr
   | TEreturn of expr list
   | TEblock of expr list
