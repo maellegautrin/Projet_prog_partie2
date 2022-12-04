@@ -358,7 +358,7 @@ let phase1 = function
   | PDstruct { ps_name = { id ; loc }; ps_fields} -> 
       (
         if Hashtbl.mem struct_env id then raise (Error (loc,"struct utilisee plusieurs fois"))
-        else add struct_env id { s_name = id; s_fields = (create 1)} 
+        else Hashtbl.add struct_env id { s_name = id; s_fields = (create 1)} 
       )
   | PDfunction _ -> ()
 
@@ -382,7 +382,7 @@ let to_tfield l_field struct_fields =
                             let typ = type_type loc typ in
                             let ofs = sizeof typ
                             in
-                            add struct_fields id {f_name = id;f_typ = typ;f_ofs = size_ofs}; aux (size_ofs + ofs) q 
+                            Hashtbl.add struct_fields id {f_name = id;f_typ = typ;f_ofs = size_ofs}; aux (size_ofs + ofs) q 
   in aux 0 l_field 
 
 let rec to_tparam = function
@@ -409,7 +409,7 @@ let phase2 = function
         if Hashtbl.mem fonction_env id then raise (Error (loc,"plusieur fonction aux même nom"))
         else let new_pl = to_tparam pl and new_typ = to_ttyp loc tyl in
           let f = {fn_name = id; fn_params = (new_pl); fn_typ = new_typ} in
-            add fonction_env id (f,pf_body);
+            Hashtbl.add fonction_env id (f,pf_body);
           if not(is_param_dist new_pl) then raise (Error (loc,"plusieur parametre avec le même nom"))
       )
   | PDstruct { ps_name = {id;loc}; ps_fields = fl } -> let fields = (Hashtbl.find struct_env id).s_fields in to_tfield fl fields
