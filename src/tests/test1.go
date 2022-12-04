@@ -5,12 +5,14 @@ import "fmt"
 
 type bool2 struct {a,b bool}
 
-func main() {
-	if a && not b 
+func main()
+{
+	var c bool2
+	if c.a && not c.b 
 	{
 		fmt.Print("vrai\n")
 	} 
-	else { if not a && b
+	else { if not c.a && c.b
 		{
 			fmt.Print("vrai\n")
 		}
