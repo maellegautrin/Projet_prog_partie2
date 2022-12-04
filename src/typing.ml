@@ -16,11 +16,11 @@ let error loc e = raise (Error (loc, e))
 
 (*DONE*)
 type typ_struct_env = (string, structure) Hashtbl.t;;
-let struct_env = Hashtabl.create 10
+let struct_env = Hashtbl.create 10
 
 (*DONE*)
 type func_env=(string,function_) Hashtbl.t;;
-let fonction_env = Hashtabl.create 10
+let fonction_env = Hashtbl.create 10
 
 let typ_function = ref []
 
