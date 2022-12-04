@@ -82,10 +82,10 @@ let fmt_used = ref false
 let fmt_imported = ref false
 
 let evar v = { expr_desc = TEident v; expr_typ = v.v_typ }
-let id = ref 0 
+let id_var = ref 0 
 let new_var =
   fun x loc ?(used=false) ty ->
-    incr id;
+    incr id_var;
     { v_name = x; v_id = !id; v_loc = loc; v_typ = ty; v_used = used; v_addr = 0; v_depth = 0 } 
 let id_var_entry_bloc = ref 0
 module Env = struct
