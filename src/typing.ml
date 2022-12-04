@@ -108,7 +108,7 @@ module Env = struct
     add env v, v
 
   (* TODO type () et vecteur de types *)
-
+end
 
 let env_f = ref Env.empty
 let tvoid = Tmany [];;
