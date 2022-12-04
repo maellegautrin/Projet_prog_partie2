@@ -146,7 +146,7 @@ and expr_desc env loc = function
                         | Band | Bor -> if te1.expr_typ <> Tbool then
                               error loc "mauvais type";
                              if te2.expr_typ <> Tbool then
-                             errloc loc "mauvais type";
+                             error loc "mauvais type";
                              TEbinop(op,te1, te2), Tbool,false)
                           )
   | PEunop (Uamp, e1) -> ( let exp,rt = expr env e1 in 
