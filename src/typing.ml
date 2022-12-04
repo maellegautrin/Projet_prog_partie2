@@ -181,7 +181,7 @@ let new_var,get_id,set_id =
   let id = ref 0 in
   ((fun x loc ?(used=false) ty ->
     incr id;
-    { v_name = x; v_id = !id; v_loc = loc; v_typ = ty; v_used = used; v_addr = false}),
+    { v_name = x; v_id = !id; v_loc = loc; v_typ = ty; v_used = used; v_addr = 0}),
   (fun () -> !id),(fun x -> id := x))
 
 
