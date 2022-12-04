@@ -358,7 +358,7 @@ let phase1 = function
   | PDstruct { ps_name = { id ; loc }; ps_fields} -> 
       (
         if Hashtbl.mem struct_env id then raise (Error (loc,"struct utilisee plusieurs fois"))
-        else Hashtbl.add struct_env id { s_name = id; s_fields = (create 1)} 
+        else Hashtbl.add struct_env id { s_name = id; s_fields = (Hashtbl.create 1)} 
       )
   | PDfunction _ -> ()
 
