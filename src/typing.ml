@@ -435,7 +435,7 @@ let is_recursive_structure loc s lvu =
 let decl = function
   | PDfunction { pf_name={id; loc}; pf_body = e; pf_typ=tyl; pf_params=pl } ->
     (
-      typ_function := ptyp_to_ttyp loc tyl;
+      typ_function := to_ttyp loc tyl;
       let f,exp = Hashtbl.find fonction_env id in
           env_f := (is_lvar_in  f.fn_params);
           env_f := Env.add (!env_f) (new_var "_" dummy_loc tvoid);
