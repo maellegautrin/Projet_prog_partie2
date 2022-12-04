@@ -126,7 +126,6 @@ and expr_desc env loc = function
                         | Cint _ ->  TEconstant c, Tint, false
                         | Cstring _ -> TEconstant c, Tstring, false
                     )
-
   | PEbinop (op, e1, e2) -> let exp1,rt1 = expr env e1 and exp2,rt2 = expr env e2 in
                          ( if not(eq_type exp1.expr_typ exp2.expr_typ) then raise (Error (loc,"type inconnu")) 
                            else match op with 
@@ -152,22 +151,18 @@ and expr_desc env loc = function
                            | Bge -> TEbinop (op, exp1, exp2),Tbool,false
                            | _ -> TEbinop (op, exp1, exp2),exp1.expr_typ,false
       )
-
   | PEunop (Uamp, e1) -> ( let exp,rt = expr env e1 in 
                           is_l_value loc exp;
                           TEunop (Uamp, exp), Tptr exp.expr_typ, false 
                           )
-
   | PEunop (Uneg, e1) -> ( let exp,rt = expr env e1 in
                           if eq_type exp.expr_typ Tint then TEunop (Uneg, exp), Tint, false
                           else error loc "int attendu"
                           )
-
   | PEunop (Unot, e1) -> ( let exp,rt = expr env e1 in
                             if eq_type exp.expr_typ Tbool then TEunop (Uneg, exp), Tbool, false
                             else error loc "bool attendu"
                           )
-  
   | PEunop (Ustar, e1) ->( let exp,rt = expr env e1 in 
                           match exp.expr_desc, exp.expr_typ with
                                | TEnil, _ -> error loc "expression vide"
@@ -199,7 +194,6 @@ and expr_desc env loc = function
                     if not(eq_type e1.expr_typ Tbool) then error loc "bool attendu"
                     else TEfor (e1,e2), tvoid, false
                     )
-
   | PEif (e1, e2, e3) -> let exp1,rt1 = expr env e1
                           and exp2,rt2 = expr env e2
                           and exp3,rt3 = expr env e3 in
@@ -259,7 +253,6 @@ and expr_desc env loc = function
                         if eq_type exp.expr_typ Tint then TEincdec (exp,op), Tint, true else error loc "mauvais type"
                          )
                        )
-
   | PEvars (il,ty,pl) ->( let tl = List.map (pexpr_to_expr env) pl and pil = List.map (fun x -> {pexpr_desc=PEident x;pexpr_loc=loc}) il in 
                           let pe2 = {pexpr_desc=PEassign (pil,pl);pexpr_loc = loc} in
                           match ty with
@@ -293,7 +286,6 @@ and expr_desc env loc = function
                                                        else error loc "mauvais types"
                                            )
                         )
-
 and traitement_block env e = match e with
     | {pexpr_desc = PEvars _} -> 
       let exp,b = expr env e in 
@@ -304,14 +296,12 @@ and traitement_block env e = match e with
         )
     | _ -> [expr env e]
                   
-
 and pexpr_to_expr env e = 
   let exp,rt = expr env e in exp
 
 and list_block = function
   | [] -> [],false
   | (e,rt)::q -> let l,rt_block = list_block q in e::l,(rt || rt_block)
-
 
 and ltyp_of_exp = function
     | [] -> []
@@ -335,8 +325,6 @@ and compare_typ_assign el ltyp = match el,ltyp with
     | {expr_typ=t1}::q1,t2::q2 when (eq_type t1 t2) -> compare_typ_assign q1 q2
     | _,_ -> false
     
-
-
 and add_var_typ li lt loc_act = match li,lt with
     | [],[] -> []
     | {loc;id}::q1,t::q2 -> 
@@ -374,7 +362,6 @@ let phase1 = function
         else add struct_env id { s_name = id; s_fields = (create 1)} 
       )
   | PDfunction _ -> ()
-
 
 let rec sizeof = function
   | Tint 
@@ -428,7 +415,6 @@ let phase2 = function
       )
   | PDstruct { ps_name = {id;loc}; ps_fields = fl } -> let fields = (find struct_env id).s_fields in to_tfield fl fields
 
-
 (* 3. type check function bodies *)
 
 let is_lvar_in  l = 
@@ -447,7 +433,6 @@ let is_recursive_structure loc s lvu =
       | _ -> ()
   in etude_fields s.s_fields lvu
 
-
 let decl = function
   | PDfunction { pf_name={id; loc}; pf_body = e; pf_typ=tyl; pf_params=pl } ->
     (
@@ -462,7 +447,7 @@ let decl = function
   | PDstruct {ps_name={id;loc}} ->
     let s = find struct_env id in
      (is_recursive_structure loc s [s.s_name]; TDstruct s) 
-
+     
 let file ~debug:b (imp, dl) =
   debug := b;
   (* fmt_imported := imp; *)
