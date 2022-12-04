@@ -62,7 +62,7 @@ let rec type_type loc = function
   | PTident { id = "int" } -> Tint
   | PTident { id = "bool" } -> Tbool
   | PTident { id = "string" } -> Tstring
-  | PTident { id } when mem struct_env id -> Tstruct(find struct_env id)
+  | PTident { id } when Hashtbl.mem struct_env id -> Tstruct(find struct_env id)
   | PTptr ty -> Tptr (type_type loc ty)
   | _ -> raise (Error (loc, "type inconnu")) 
 
@@ -175,11 +175,11 @@ and expr_desc env loc = function
                                                           | "int" -> Tint 
                                                           | "bool" -> Tbool 
                                                           | "string" -> Tstring
-                                                          | _ when mem struct_env id -> Tstruct (find struct_env id) 
+                                                          | _ when Hashtbl.mem struct_env id -> Tstruct (find struct_env id) 
                                                           | _ -> error loc ("mauvais type") in
                                                                  TEnew ty, Tptr ty, false
   | PEcall ({id="new"}, _) ->  error loc "pas de type"
-  | PEcall (id, el) -> ( if not(mem fonction_env id.id) then error loc "fonction inconnue"
+  | PEcall (id, el) -> ( if not(Hashtbl.mem fonction_env id.id) then error loc "fonction inconnue"
                         else (let l_entry = List.map (pexpr_to_expr env) el and f,exp = (find fonction_env id.id) in 
                                if f.fn_params = [] && l_entry <> [] then error loc "pas d'argument pour cette fonction"
                               else match l_entry with
@@ -211,7 +211,7 @@ and expr_desc env loc = function
                       match exp.expr_typ with
                           | Tstruct s 
                           | Tptr Tstruct s when exp.expr_desc <> TEnil -> let fields = s.s_fields in 
-                              if not(mem fields id.id) then error loc "inconnu"
+                              if not(Hashtbl.mem fields id.id) then error loc "inconnu"
                               else let f = find fields id.id in TEdot (exp, f), f.f_typ, false
                           | _ -> error loc "pas une structure"
                      )
@@ -358,7 +358,7 @@ let found_main = ref false
 let phase1 = function
   | PDstruct { ps_name = { id ; loc }; ps_fields} -> 
       (
-        if mem struct_env id then raise (Error (loc,"struct utilisee plusieurs fois"))
+        if Hashtbl.mem struct_env id then raise (Error (loc,"struct utilisee plusieurs fois"))
         else add struct_env id { s_name = id; s_fields = (create 1)} 
       )
   | PDfunction _ -> ()
@@ -378,7 +378,7 @@ and sizeof_fields key field init =
 let to_tfield l_field struct_fields = 
   let rec aux size_ofs = function
     | [] -> ()
-    | ({id;loc},typ)::q -> if mem struct_fields id then raise (Error (loc, "utilises plusieurs fois"))
+    | ({id;loc},typ)::q -> if Hashtbl.mem struct_fields id then raise (Error (loc, "utilises plusieurs fois"))
                             else 
                             let typ = type_type loc typ in
                             let ofs = sizeof typ
@@ -407,7 +407,7 @@ let phase2 = function
   | PDfunction { pf_name={id; loc} ; pf_params=pl; pf_typ=tyl; pf_body} ->
       (if id = "main" then 
           (found_main := true; if pl <> [] then error loc "trop d'argument"; if tyl <> [] then error loc "trop d'argument");
-        if mem fonction_env id then raise (Error (loc,"plusieur fonction aux même nom"))
+        if Hashtbl.mem fonction_env id then raise (Error (loc,"plusieur fonction aux même nom"))
         else let new_pl = to_tparam pl and new_typ = to_ttyp loc tyl in
           let f = {fn_name = id; fn_params = (new_pl); fn_typ = new_typ} in
             add fonction_env id (f,pf_body);
@@ -428,7 +428,7 @@ let is_recursive_structure loc s lvu =
     Hashtbl.iter (aux lvu) fields
   and aux lvu key f =
     match f.f_typ with
-      | Tstruct sf -> if List.mem sf.s_name lvu then (error loc "structure recursive")
+      | Tstruct sf -> if List.(Hashtbl.mem) sf.s_name lvu then (error loc "structure recursive")
                       else etude_fields sf.s_fields (sf.s_name::lvu)
       | _ -> ()
   in etude_fields s.s_fields lvu
