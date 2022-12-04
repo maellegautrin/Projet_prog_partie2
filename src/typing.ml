@@ -52,6 +52,7 @@ let debug_expr = function
 | TEprint _ -> print_string "print\n"
 | TEincdec _ -> print_string "incr/decr\n"
 
+
 let create_list length var =
   let rec aux length var l = match length with 
     | 0 -> l
@@ -350,7 +351,7 @@ and if_tvoid_then_nil loc = function
     | {expr_typ= Tmany []} -> error loc " expression de type"
     | _ -> ()
 
-let found_main = ref false
+let found_main = ref true
 
 (* 1. declare structures *)
 
@@ -446,7 +447,7 @@ let decl = function
   | PDstruct {ps_name={id;loc}} ->
     let s = Hashtbl.find struct_env id in
      (is_recursive_structure loc s [s.s_name]; TDstruct s) 
-     
+
 let file ~debug:b (imp, dl) =
   debug := b;
   (* fmt_imported := imp; *)
