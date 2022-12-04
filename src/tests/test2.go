@@ -6,12 +6,12 @@ type int_variable struct{ s string, i int }
 
 func incr(a int_variable) 
 {
-	{a.i=a.i+1}
+	a.i=a.i+1
 }
 
 func decr(a int_variable) 
 {
-	{a.i=a.i-1}
+	a.i=a.i-1
 }
 
 func somme(a,b int_variable)
@@ -20,7 +20,7 @@ func somme(a,b int_variable)
 	var c int_variable;
 	c.s=a.s^"avec"^b.s;
 	c.i=a.i+b.i;
-	c
+	return c
 }
 
 func main() {
