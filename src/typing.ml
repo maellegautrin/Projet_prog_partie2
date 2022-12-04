@@ -427,7 +427,7 @@ let is_recursive_structure loc s lvu =
     Hashtbl.iter (aux lvu) fields
   and aux lvu key f =
     match f.f_typ with
-      | Tstruct sf -> if List.(Hashtbl.mem) sf.s_name lvu then (error loc "structure recursive")
+      | Tstruct sf -> if List.mem sf.s_name lvu then (error loc "structure recursive")
                       else etude_fields sf.s_fields (sf.s_name::lvu)
       | _ -> ()
   in etude_fields s.s_fields lvu
