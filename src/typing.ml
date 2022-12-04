@@ -453,6 +453,7 @@ let file ~debug:b (imp, dl) =
   (* fmt_imported := imp; *)
   List.iter phase1 dl;
   List.iter phase2 dl;
+  print_bool !found_main
   if not !found_main then error dummy_loc "missing method main";
   let dl = List.map decl dl in
   Env.check_unused (); 
