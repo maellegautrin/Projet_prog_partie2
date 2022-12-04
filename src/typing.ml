@@ -127,30 +127,28 @@ and expr_desc env loc = function
                         | Cstring _ -> TEconstant c, Tstring, false
                     )
   | PEbinop (op, e1, e2) -> let exp1,rt1 = expr env e1 and exp2,rt2 = expr env e2 in
-                         ( if not(eq_type exp1.expr_typ exp2.expr_typ) then raise (Error (loc,"type inconnu 2")) 
-                           else match op with 
-                            | Badd 
-                            | Bsub 
-                            | Bmul 
-                            | Bdiv 
-                            | Bmod 
-                            | Blt 
-                            | Ble 
-                            | Bgt 
-                            | Bge when not(eq_type exp1.expr_typ Tint) -> error loc ("incompatibilite")
-                            | Band 
-                            | Bor when not(eq_type exp1.expr_typ Tbool) -> error loc ("incompatibilite")
-                            | Beq 
-                            | Bne -> ( match exp1.expr_desc,exp2.expr_desc with 
-                                        | TEnil,TEnil -> error loc ("expressions vides")
-                                        | _ ->  TEbinop (op, exp1, exp2),Tbool,false
-                                      )
-                           | Blt 
-                           | Ble 
-                           | Bgt 
-                           | Bge -> TEbinop (op, exp1, exp2),Tbool,false
-                           | _ -> TEbinop (op, exp1, exp2),exp1.expr_typ,false
-      )
+                         ( let te1,te2 = fst (expr env e1), fst(expr env e2) in
+                         (match op with
+                        | Badd | Bsub | Bmul | Bdiv | Bmod -> 
+                         if te1.expr_typ <> Tint then
+                             error loc "mauvais type";
+                        if te2.expr_typ <> Tint then
+                             error loc "mauvais type";
+                             TEbinop(op,fst te1, fst te2), Tint,false
+                        | Beq | Bne ->  if te1.expr_desc = TEnil && (fst te2).expr_desc = TEnil then 
+                             error loc "mauvais type";
+                             TEbinop(op,te1,te2),Tbool,false
+                        | Blt | Ble | Bgt | Bge -> if te1.expr_typ <> Tint  then
+                             error loc "mauvais type";
+                            if te2.expr_typ <> Tint  then
+                             error loc Tint "mauvais type";
+                            TEbinop(op,fst te1, fst te2), Tbool,false
+                        | Band | Bor -> if (fst te1).expr_typ <> Tbool then
+                              error loc "mauvais type";
+                             if te2.expr_typ <> Tbool then
+                             errloc loc "mauvais type";
+                             TEbinop(op,fst te1, fst te2), Tbool,false)
+                          )
   | PEunop (Uamp, e1) -> ( let exp,rt = expr env e1 in 
                           is_l_value loc exp;
                           TEunop (Uamp, exp), Tptr exp.expr_typ, false 
