@@ -1,4 +1,3 @@
-
 open Format
 open Lib
 open Ast
@@ -126,45 +125,37 @@ and expr_desc env loc = function
                         | Cint _ ->  TEconstant c, Tint, false
                         | Cstring _ -> TEconstant c, Tstring, false
                     )
-  | PEbinop (op, e1, e2) -> let exp1,rt1 = expr env e1 and exp2,rt2 = expr env e2 in
-                         ( let te1,te2 = fst (expr env e1), fst(expr env e2) in
+  | PEbinop (op, e1, e2) -> ( let t1,t2 = fst (expr env e1), fst(expr env e2) in
                          (match op with
-                        | Badd | Bsub | Bmul | Bdiv | Bmod -> 
-                         if te1.expr_typ <> Tint then
-                             error loc "mauvais type 1";
-                        if te2.expr_typ <> Tint then
-                             error loc "mauvais type 2";
-                             TEbinop(op,te1, te2), Tint,false
-                        | Beq | Bne ->  if te1.expr_desc = TEnil && te2.expr_desc = TEnil then 
-                             error loc "mauvais type 3";
-                             TEbinop(op,te1,te2),Tbool,false
-                        | Blt | Ble | Bgt | Bge -> if te1.expr_typ <> Tint  then
-                             error loc "mauvais type 4";
-                            if te2.expr_typ <> Tint  then
-                             error loc  "mauvais type 5";
-                            TEbinop(op, te1, te2), Tbool,false
-                        | Band | Bor -> if te1.expr_typ <> Tbool then
-                              error loc "mauvais type 6";
-                             if te2.expr_typ <> Tbool then
-                             error loc "mauvais type 7";
-                             TEbinop(op,te1, te2), Tbool,false)
+                              | Badd | Bsub | Bmul | Bdiv | Bmod -> 
+                                     if t1.expr_typ,t2.expr_typ <> Tint,Tint then error loc "int demandé pour ces opérations"
+                                     else TEbinop(op,t1, t2), Tint,false
+                              | Beq | Bne ->  
+                                      if t1.expr_desc = TEnil && t2.expr_desc = TEnil then error loc "mauvais type 3"
+                                      else  TEbinop(op,t1,t2),Tbool,false
+                              | Blt | Ble | Bgt | Bge -> 
+                                      if t1.expr_typ,t2.expr_typ <> Tint,Tint  then error loc "int demandé pour ces opérations"           
+                                      else TEbinop(op, t1, t2), Tbool,false
+                              | Band | Bor -> 
+                                  if t1.expr_typ,t2.expr_typ <> Tbool,Tbool then error loc "bool demandé pour ces opérations";
+                                  else TEbinop(op,t1, t2), Tbool,false)
                           )
-  | PEunop (Uamp, e1) -> ( let exp,rt = expr env e1 in 
-                          is_l_value loc exp;
-                          TEunop (Uamp, exp), Tptr exp.expr_typ, false 
+  | PEunop (Uamp, e1) -> ( let t1,_ = expr env e1 in 
+                          is_l_value loc t1;
+                          TEunop (Uamp, t1), Tptr t1.expr_typ, false 
                           )
-  | PEunop (Uneg, e1) -> ( let exp,rt = expr env e1 in
-                          if eq_type exp.expr_typ Tint then TEunop (Uneg, exp), Tint, false
+  | PEunop (Uneg, e1) -> ( let t1,_ = expr env e1 in
+                          if eq_type t1.expr_typ Tint then TEunop (Uneg, t1), Tint, false
                           else error loc "int attendu"
                           )
-  | PEunop (Unot, e1) -> ( let exp,rt = expr env e1 in
-                            if eq_type exp.expr_typ Tbool then TEunop (Uneg, exp), Tbool, false
+  | PEunop (Unot, e1) -> ( let t1,_ = expr env e1 in
+                            if eq_type t1.expr_typ Tbool then TEunop (Uneg, t1), Tbool, false
                             else error loc "bool attendu"
                           )
-  | PEunop (Ustar, e1) ->( let exp,rt = expr env e1 in 
-                          match exp.expr_desc, exp.expr_typ with
+  | PEunop (Ustar, e1) ->( let t1,_ = expr env e1 in 
+                          match t1.expr_desc, t1.expr_typ with
                                | TEnil, _ -> error loc "expression vide"
-                               | _, Tptr t -> TEunop (Ustar, exp), t, false
+                               | _, Tptr t -> TEunop (Ustar, t1), t, false
                                | _ -> error loc "pointeur attendu"
                           )
   | PEcall ({id = "fmt.Print"}, el) -> fmt_used := true; 
@@ -188,11 +179,11 @@ and expr_desc env loc = function
                                     | _ -> error loc "mauvais type"
                              )
                         )
-  | PEfor (e, b) ->( let e1,rt1 = expr env e and e2,rt2 = expr env b in
+  | PEfor (e, b) ->( let e1,_1 = expr env e and e2,_2 = expr env b in
                     if not(eq_type e1.expr_typ Tbool) then error loc "bool attendu"
                     else TEfor (e1,e2), tvoid, false
                     )
-  | PEif (e1, e2, e3) -> let exp1,rt1 = expr env e1
+  | PEif (e1, e2, e3) -> let exp1,_ = expr env e1
                           and exp2,rt2 = expr env e2
                           and exp3,rt3 = expr env e3 in
                         if eq_type exp1.expr_typ Tbool then 
@@ -246,9 +237,9 @@ and expr_desc env loc = function
                   env_f := old_env; id_var_entry_bloc := old_entry_var;
                   TEblock l_expr, tvoid, rt
                   )
-  | PEincdec (e, op) ->( let exp,rt = expr env e in 
-                        ( is_l_value loc exp;
-                        if eq_type exp.expr_typ Tint then TEincdec (exp,op), Tint, true else error loc "mauvais type"
+  | PEincdec (e, op) ->( let t1,_ = expr env e in 
+                        ( is_l_value loc t1;
+                        if eq_type t1.expr_typ Tint then TEincdec (t1,op), Tint, true else error loc "mauvais type"
                          )
                        )
   | PEvars (il,ty,pl) ->( let tl = List.map (pexpr_to_expr env) pl and pil = List.map (fun x -> {pexpr_desc=PEident x;pexpr_loc=loc}) il in 
