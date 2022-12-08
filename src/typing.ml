@@ -137,8 +137,9 @@ and expr_desc env loc = function
                                       if t1.expr_typ,t2.expr_typ <> Tint,Tint  then error loc "int demandé pour ces opérations"           
                                       else TEbinop(op, t1, t2), Tbool,false
                               | Band | Bor -> 
-                                  if t1.expr_typ,t2.expr_typ <> Tbool,Tbool then error loc "bool demandé pour ces opérations";
-                                  else TEbinop(op,t1, t2), Tbool,false)
+                                  if t1.expr_typ,t2.expr_typ <> Tbool,Tbool then error loc "bool demandé pour ces opérations"
+                                  else TEbinop(op,t1, t2), Tbool,false
+       
                           )
   | PEunop (Uamp, e1) -> ( let t1,_ = expr env e1 in 
                           is_l_value loc t1;
