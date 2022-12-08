@@ -125,7 +125,7 @@ and expr_desc env loc = function
                         | Cint _ ->  TEconstant c, Tint, false
                         | Cstring _ -> TEconstant c, Tstring, false
                     )
-  | PEbinop (op, e1, e2) -> ( let t1,t2 = fst (expr env e1), fst(expr env e2) in
+  | PEbinop (op, e1, e2) -> let t1,t2 = fst (expr env e1), fst(expr env e2) in
                          (match op with
                               | Badd | Bsub | Bmul | Bdiv | Bmod -> 
                                      if t1.expr_typ,t2.expr_typ <> Tint,Tint then error loc "int demandé pour ces opérations"
