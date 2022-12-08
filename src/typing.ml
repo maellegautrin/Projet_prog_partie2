@@ -134,10 +134,10 @@ and expr_desc env loc = function
                                       if t1.expr_desc = TEnil && t2.expr_desc = TEnil then error loc "mauvais type 3"
                                       else  TEbinop(op,t1,t2),Tbool,false
                               | Blt | Ble | Bgt | Bge -> 
-                                      if t1.expr_typ,t2.expr_typ <> Tint,Tint  then error loc "int demandé pour ces opérations"           
+                                      if (t1.expr_typ,t2.expr_typ) <> (Tint,Tint)  then error loc "int demandé pour ces opérations"           
                                       else TEbinop(op, t1, t2), Tbool,false
                               | Band | Bor -> 
-                                  if t1.expr_typ,t2.expr_typ <> Tbool,Tbool then error loc "bool demandé pour ces opérations"
+                                  if (t1.expr_typ,t2.expr_typ) <> (Tbool,Tbool) then error loc "bool demandé pour ces opérations"
                                   else TEbinop(op,t1, t2), Tbool,false
        
                           )
