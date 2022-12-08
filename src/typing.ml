@@ -128,7 +128,7 @@ and expr_desc env loc = function
   | PEbinop (op, e1, e2) -> let t1,t2 = fst (expr env e1), fst(expr env e2) in
                          (match op with
                               | Badd | Bsub | Bmul | Bdiv | Bmod -> 
-                                     if t1.expr_typ,t2.expr_typ <> Tint,Tint then error loc "int demandé pour ces opérations"
+                                     if (t1.expr_typ,t2.expr_typ) <> (Tint,Tint) then error loc "int demandé pour ces opérations"
                                      else TEbinop(op,t1, t2), Tint,false
                               | Beq | Bne ->  
                                       if t1.expr_desc = TEnil && t2.expr_desc = TEnil then error loc "mauvais type 3"
