@@ -23,35 +23,6 @@ let fonction_env = Hashtbl.create 10
 
 let typ_function = ref []
 
-let rec debug_type = function
- | Tint -> print_string "int\n"
- | Tbool -> print_string "bool\n"
- | Tstring -> print_string "string\n"
- | Tmany [] -> print_string "tvoid\n"
- | Tptr t -> print_string "pointeur"; debug_type t
- | Tmany (h::q) -> debug_type h; debug_type (Tmany q)
- | Tstruct s -> print_string s.s_name; print_string "\n"
-
-let debug_expr = function
-| TEskip -> print_string "skip\n"
-| TEconstant _ -> print_string "constante\n"
-| TEbinop _ -> print_string "binop\n"
-| TEunop _ -> print_string "unop\n"
-| TEnil -> print_string "vide\n"
-| TEnew _ -> print_string "new\n"
-| TEcall _ -> print_string "appel fonction\n"
-| TEident _ -> print_string "variable\n"
-| TEdot _ -> print_string "champ structure\n"
-| TEassign _ -> print_string "assignation\n"
-| TEvars _ -> print_string "decl variable\n"
-| TEif _ -> print_string "if\n"
-| TEreturn _ -> print_string "return\n"
-| TEblock _ -> print_string "block\n"
-| TEfor _ -> print_string "boucle for\n"
-| TEprint _ -> print_string "print\n"
-| TEincdec _ -> print_string "incr/decr\n"
-
-
 let create_list length var =
   let rec aux length var l = match length with 
     | 0 -> l
@@ -128,16 +99,16 @@ and expr_desc env loc = function
   | PEbinop (op, e1, e2) -> let t1,t2 = fst (expr env e1), fst(expr env e2) in
                          (match op with
                               | Badd | Bsub | Bmul | Bdiv | Bmod -> 
-                                     if t1.expr_typ,t2.expr_typ <> Tint,Tint then error loc "int demandé pour ces opérations"
+                                     if (t1.expr_typ,t2.expr_typ) <> (Tint,Tint) then error loc "int demandé pour ces opérations"
                                      else TEbinop(op,t1, t2), Tint,false
                               | Beq | Bne ->  
                                       if t1.expr_desc = TEnil && t2.expr_desc = TEnil then error loc "mauvais type 3"
                                       else  TEbinop(op,t1,t2),Tbool,false
                               | Blt | Ble | Bgt | Bge -> 
-                                      if t1.expr_typ,t2.expr_typ <> Tint,Tint  then error loc "int demandé pour ces opérations"           
+                                      if (t1.expr_typ,t2.expr_typ) <> (Tint,Tint)  then error loc "int demandé pour ces opérations"           
                                       else TEbinop(op, t1, t2), Tbool,false
                               | Band | Bor -> 
-                                  if t1.expr_typ,t2.expr_typ <> Tbool,Tbool then error loc "bool demandé pour ces opérations"
+                                  if (t1.expr_typ,t2.expr_typ) <> (Tbool,Tbool) then error loc "bool demandé pour ces opérations"
                                   else TEbinop(op,t1, t2), Tbool,false
        
                           )
@@ -233,7 +204,6 @@ and expr_desc env loc = function
                   ( id_var_entry_bloc := !id_var;
                   let l = List.map (traitement_block env) el in 
                   let l = List.flatten l in
-                  (*List.iter (fun (e,b) -> debug_expr e.expr_desc) l;*)
                   let l_expr, rt = list_block l in
                   env_f := old_env; id_var_entry_bloc := old_entry_var;
                   TEblock l_expr, tvoid, rt
@@ -341,7 +311,7 @@ and if_tvoid_then_nil loc = function
     | {expr_typ= Tmany []} -> error loc " expression de type"
     | _ -> ()
 
-let found_main = ref true
+let found_main = ref false
 
 (* 1. declare structures *)
 
@@ -360,6 +330,7 @@ let rec sizeof = function
   | Tptr _ -> 8
   | Tstruct s -> Hashtbl.fold sizeof_fields (s.s_fields) 0
   | Tmany l -> List.fold_left (fun init x -> (sizeof x) + init) 0 l
+  |_->0
 and sizeof_fields key field init = 
   (sizeof (field.f_typ)) + init
 
@@ -440,7 +411,7 @@ let decl = function
 
 let file ~debug:b (imp, dl) =
   debug := b;
-  (* fmt_imported := imp; *)
+  fmt_imported := imp; 
   List.iter phase1 dl;
   List.iter phase2 dl;
  
