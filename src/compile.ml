@@ -54,16 +54,16 @@ let new_label =
 type env = {
   exit_label : string;
   mutable ofs_this : int;
-  nb_locals : int ref; (* maximum *)
+  mutable nb_locals : int ref; (* maximum *)
   mutable next_local : int; (* 0, 1, ... *)
 }
 
 let empty_env =
-  { exit_label = ""; ofs_this = -1; nb_locals = ref 0; next_local = 0 }
+  { exit_label = ""; ofs_this = -1; nb_locals = 0; next_local = 0 }
 
-let mk_bool d = { expr_desc = d; expr_typ = Tbool }
-let mk_int i = { expr_desc = i; expr_typ = Tint }
-let mk_string s = { expr_desc = s; expr_typ = Tstring }
+let mk_bool d = { expr_desc = d; expr_typ = Tbool } (*crée une expression expr à partir d'une expr_desc de type bool*)
+let mk_int i = { expr_desc = i; expr_typ = Tint } (*crée une expression expr à partir d'une expr_desc de type int*)
+let mk_string s = { expr_desc = s; expr_typ = Tstring } (*crée une expression expr à partir d'une expr_desc de type string*)
 
 (* f reçoit le label correspondant à ``renvoyer vrai'' *)
 let compile_bool f =
@@ -76,26 +76,26 @@ let compile_bool f =
 
 let rec expr env e =
   match e.expr_desc with
-  | TEskip -> nop
-  | TEconstant (Cbool true) -> movq (imm 1) (reg rdi)
-  | TEconstant (Cbool false) -> movq (imm 0) (reg rdi)
-  | TEconstant (Cint x) -> movq (imm64 x) (reg rdi)
-  | TEnil -> xorq (reg rdi) (reg rdi)
-  | TEconstant (Cstring s) ->
+  | TEskip -> nop (* on écrit rien dans le .s *)
+  | TEconstant (Cbool true) -> movq (imm 1) (reg rdi) (* on place la constante qui est un booléen dans rdi *)
+  | TEconstant (Cbool false) -> movq (imm 0) (reg rdi) (*idem*)
+  | TEconstant (Cint x) -> movq (imm64 x) (reg rdi) (* idem pour un entier *)
+  | TEnil -> xorq (reg rdi) (reg rdi) 
+  | TEconstant (Cstring s) ->  (*pour une string il faut d'abord allouer de la mémoire grâce à alloc_string puis stocker dans rdi *)
       let st = alloc_string s in
       movq (lab st) (reg rdi)
-  | TEbinop (Band, e1, e2) ->
-      expr env (mk_bool (TEif (e1, e2, mk_bool (TEconstant (Cbool false)))))
-  | TEbinop (Bor, e1, e2) ->
-      expr env (mk_bool (TEif (e1, mk_bool (TEconstant (Cbool true)), e2)))
-  | TEbinop (((Blt | Ble | Bgt | Bge) as op), e1, e2) ->
+  | TEbinop (Band, e1, e2) -> (* pour le "et" lazy, on utilise le if pour vérifier que la première condition est vraie avant de tester la deuxième*)
+      expr env (mk_bool (TEif (e1, e2, mk_bool (TEconstant (Cbool false))))) (*on renvoi enfaite un TEif de type bool*)
+  | TEbinop (Bor, e1, e2) -> (*même chose que pour le et*)
+      expr env (mk_bool (TEif (e1, mk_bool (TEconstant (Cbool true)), e2))) 
+  | TEbinop (((Blt | Ble | Bgt | Bge) as op), e1, e2) -> 
       expr env e1
       ++ pushq (reg rdi)
-      ++ (env.ofs_this <- env.ofs_this + 8;
+      ++ (env.ofs_this <- env.ofs_this + 8; (* on met à jour le ofs_this car on a ajouté sur la pile*)
           expr env e2)
       ++ popq rax
-      ++ (env.ofs_this <- env.ofs_this - 8;
-      cmpq (reg rdi) (reg rax))
+      ++ (env.ofs_this <- env.ofs_this - 8; (*idem*)
+      cmpq (reg rdi) (reg rax)) (* on effectue la comparaison puis on appel compile_bool avec le drapeau correspondant à l'opérateur*)
       ++ compile_bool
            (match op with
            | Blt -> jl
@@ -110,7 +110,7 @@ let rec expr env e =
       expr env e2 )++ popq rax
       ++ (env.ofs_this <- env.ofs_this - 8;
       
-      match op with
+      match op with (* on distingue les cas de manière classique*)
       | Badd -> addq (reg rax) (reg rdi)
       | Bsub -> subq (reg rdi) (reg rax) ++ movq (reg rax) (reg rdi)
       | Bmul -> imulq (reg rax) (reg rdi)
@@ -130,55 +130,58 @@ let rec expr env e =
       ++ popq rax
       ++ (env.ofs_this <- env.ofs_this - 8;
       cmpq (reg rdi) (reg rax))
-      ++ compile_bool
-           (match op with Beq -> je | Bne -> jne | _ -> assert false)
+      ++ compile_bool (*appel de compile_bool pour mettre à vrai ou faux en fonction du drapeau calculé par cmpq*)
+           (match op with
+            | Beq -> je 
+            | Bne -> jne
+            | _ -> assert false)
   | TEunop (Uneg, e1) -> expr env e1 ++ negq (reg rdi)
   | TEunop (Unot, e1) -> expr env e1 ++ notq (reg rdi)
-  | TEunop (Uamp, e1) -> (
+  | TEunop (Uamp, e1) -> ( (*il faut ici aller rechercher l'addresse ce qui se fait gr^ce à l'opérateur leaq*)
       match e1.expr_desc with
       | TEident x -> leaq (ind ~ofs:(-x.v_addr) rbp) rdi
-      | TEunop (Ustar, e) -> expr env e
+      | TEunop (Ustar, e) -> expr env e (* ce cas est évident car il on de mande l'addresse de la valeur à une addresse *)
       | TEdot (e, { f_ofs = ofs }) -> expr env e ++ leaq (ind ~ofs rdi) rdi
       | _ -> assert false)
   | TEunop (Ustar, e1) -> expr env e1 ++ movq (ind rdi) (reg rdi)
-  | TEprint el -> (
+  | TEprint el -> ( (*on regarde la liste d'expression à afficher*)
       match el with
       | [] -> nop
-      | exp :: q -> (
-          match exp.expr_typ with
-          | Tint | Tbool ->
+      | exp :: q -> ( (* on afficher expression par expression*)
+          match exp.expr_typ with (* il faut donc crée un label pour afficher chaque type ce qui est fait plus bas*)
+          | Tint | Tbool -> (* pour un int ou un bool, il suffit juste d'appeler "print_int"*)
               expr env exp ++ call "print_int" ++ expr env (mk_int (TEprint q))
           | Tstring ->
               expr env exp
               ++ movq (reg rdi) (reg rsi)
               ++ expr env
-                   { expr_desc = TEconstant (Cstring "%s"); expr_typ = Tstring }
+                   { expr_desc = TEconstant (Cstring "%s"); expr_typ = Tstring } (* il faut aussi évaluer l'expression avec %s pour les arguments de type string*)
               ++ xorq (reg rax) (reg rax)
-              ++ call "printf"
-              ++ expr env (mk_string (TEprint q))
+              ++ call "printf" (*appel de printf qui est déja dans x86_64*)
+              ++ expr env (mk_string (TEprint q)) (*on print le reste de la liste*)
           | Tptr t -> (
               expr env exp
               ++ pushq (reg rdi)
               ++ (env.ofs_this <- env.ofs_this + 8;
                expr env)
-                   { expr_desc = TEconstant (Cstring "%p"); expr_typ = Tstring }
+                   { expr_desc = TEconstant (Cstring "%p"); expr_typ = Tstring } (*idem*)
               ++ popq rsi
               ++ (env.ofs_this <- env.ofs_this - 8;
               xorq (reg rax) (reg rax))
-              ++ call "printf"
+              ++ call "printf" (*pour le %p*)
               ++
-              match t with
-              | Tint -> expr env (mk_int (TEprint q))
+              match t with (*on recommence l'affichage avec le type de l'objet pointé*)
+              | Tint -> expr env (mk_int (TEprint q)) 
               | Tbool -> expr env (mk_bool (TEprint q))
               | Tstring -> expr env (mk_string (TEprint q))
               | _ -> assert false)
           | Tmany [] ->
               expr env
-                { expr_desc = TEconstant (Cstring "(nil)"); expr_typ = Tstring }
+                { expr_desc = TEconstant (Cstring "(nil)"); expr_typ = Tstring } (* pour le Tmany sans arguments on affiche nil*)
               ++ xorq (reg rax) (reg rax)
               ++ xorq (reg rax) (reg rax)
               ++ call "printf"
-          | Tmany l -> expr env exp ++ xorq (reg rax) (reg rax) ++ call "printf"
+          | Tmany l -> expr env exp ++ xorq (reg rax) (reg rax) ++ call "printf" (*sinon, il s'agit juste d'un printf habituel*)
           | _ -> assert false))
   | TEident x -> movq (ind ~ofs:(-x.v_addr) rbp) (reg rdi)
   | TEassign ([ { expr_desc = TEident x } ], [ e1 ]) ->
@@ -186,7 +189,7 @@ let rec expr env e =
   | TEassign ([ lv ], [ e1 ]) ->
       expr env e1
       ++ pushq (reg rdi)
-      ++(env.ofs_this <- env.ofs_this - 8;
+      ++(env.ofs_this <- env.ofs_this - 8; (* mise à jour du ofs_this*)
        expr env (mk_int (TEunop (Uamp, lv))))
       ++ popq rbx
       ++ (env.ofs_this <- env.ofs_this - 8; movq (reg rbx) (ind rdi))
@@ -196,23 +199,23 @@ let rec expr env e =
           expr env (mk_int (TEassign ([ h1 ], [ h2 ])))
           ++ expr env { expr_desc = TEassign (q1, q2); expr_typ = Tint }
       | _, _ -> nop)
-  | TEblock el -> List.fold_left (fun c e -> c ++ expr env e) nop el
+  | TEblock el -> List.fold_left (fun c e -> c ++ expr env e) nop el (*on effectue récursievement l'évaluation expression par expression parmi les la liste dans le block*)
   | TEif (e1, e2, e3) ->
-      let l1, l2 = (new_label (), new_label ()) in
+      let l1, l2 = (new_label (), new_label ()) in (*on crée ici un label pour le "then" et pour le "else"*)
       expr env e1
       ++ movq (imm 0) (reg rbx)
       ++ cmpq (reg rdi) (reg rbx)
-      ++ jne l1 ++ expr env e3 ++ jmp l2 ++ label l1 ++ expr env e2 ++ label l2
+      ++ jne l1 ++ expr env e3 ++ jmp l2 ++ label l1 ++ expr env e2 ++ label l2 (*on appel de else ou le then en fonction de la valeur de e1*)
   | TEfor (e1, e2) ->
-      let l1, l2 = (new_label (), new_label ()) in
+      let l1, l2 = (new_label (), new_label ()) in (* on crée un label pour la condition et un autre pour l'opération a effectuée*)
       label l1 ++ expr env e1
       ++ movq (imm 0) (reg rbx)
-      ++ cmpq (reg rdi) (reg rbx)
-      ++ je l2 ++ expr env e2 ++ jmp l1 ++ label l2
-  | TEnew ty -> malloc (sizeof ty) ++ movq (reg rax) (reg rdi)
+      ++ cmpq (reg rdi) (reg rbx) (* on compare le résultat de e1 avec false*)
+      ++ je l2 ++ expr env e2 ++ jmp l1 ++ label l2 (* si e1 alors on va à l2 avec je et l2 renvoi à l1 pour recommencer le test*)
+  | TEnew ty -> malloc (sizeof ty) ++ movq (reg rax) (reg rdi) (* on alloue de la place de la bonne taille puis on stocke*)
   | TEcall (f, el) ->
-      let l1 = List.fold_left (push_params env) nop el in
-      l1 ++ call ("F_" ^ f.fn_name) ++ addq (imm (List.length el * 8)) !%rsp
+      let l1 = List.fold_left (push_params env) nop el in (* évaluation des parametres*)
+      l1 ++ call ("F_" ^ f.fn_name) ++ addq (imm (List.length el * 8)) !%rsp (*appel de la fonction avec les arguments stockés sur la pile*)
   | TEdot (e1, { f_ofs = ofs }) -> expr env e1 ++ movq (ind ~ofs rdi) (reg rdi)
   | TEvars (v1,e1) -> 
      (match e1 with
@@ -226,11 +229,11 @@ let rec expr env e =
         |a::b-> popq (reg rax) ++ a.value<- (reg rax)
      
 
-  | TEreturn [] -> jmp env.exit_label
+  | TEreturn [] -> jmp env.exit_label (* on appel le label de retour qui est stocké dans la mémoire du label*)
   | TEreturn [ e1 ] -> expr env e1 ++ jmp env.exit_label
   | TEreturn _ -> assert false
-  | TEincdec (e1, op) -> (
-      match op with
+  | TEincdec (e1, op) -> ( 
+      match op with (* on distngue les cas incrémentation ét décrémentation*)
       | Inc ->
           expr env e1
           ++ incq (reg rdi)
@@ -246,7 +249,7 @@ let rec expr env e =
           ++ popq rbx
           ++ (env.ofs_this <- env.ofs_this - 8; movq (reg rbx) (ind rdi))
   )
-and push_params env init e = init ++ expr env e ++ pushq (reg rdi)
+and push_params env init e = init ++ expr env e ++ pushq (reg rdi) (*on évalue les parametres et on les met sur la pile*)
 
 let function_ f e =
   if !debug then eprintf "function %s:@." f.fn_name;
